@@ -1,0 +1,302 @@
+# LISTADO COMPLETO DE UPDATES EN CONTROLADORES
+## Proyecto: Donde El Marco
+## Fecha: Octubre 2025
+
+---
+
+## **1. PAGOCONTROLLER.PHP**
+
+### 1.1 Update en tabla de ventas detalle temporal (método `store()`)
+**Ubicación:** Línea ~340-350
+**Tabla:** Obtenida de `fncTraeTablaVentasDetalleTmp()`
+```php
+DB::table($tableTmp)
+->where('id_usuario','=',Auth::user()->id_usuario )
+->where('id_local','=',Auth::user()->id_local )
+->update([
+    'forma_pago'  => $request->formaPago,
+]);
+```
+
+### 1.2 Update en tabla de stock (función `fncDevolucionAddProductos()`)
+**Ubicación:** Línea ~50-60
+**Tabla:** Obtenida de `fncTraeTablaStock()`
+**Tipo:** Query SQL directo
+```php
+// ACTUALIZO EL STOCK
+DB::select("UPDATE $tableStock SET cantidad = $cantidadNew WHERE codigo ='".$LsProdDev->codigo."'");
+```
+
+### 1.3 Update en tabla de stock (función `fncSocktDescontarProductos()`)
+**Ubicación:** Línea ~85-95
+**Tabla:** Obtenida de `fncTraeTablaStock()`
+**Tipo:** Query SQL directo
+```php
+// ACTUALIZO EL STOCK
+DB::select("UPDATE $tableStock SET cantidad = $cantidadNew WHERE codigo ='".$LsProdVentas->codigo."'");
+```
+
+### 1.4 Update en tabla de stock (función `fncGuardaVenta()`)
+**Ubicación:** Línea ~480-490
+**Tabla:** Obtenida de `fncTraeTablaStock()`
+```php
+// Actualizar stock
+DB::table($tableStock)
+    ->where('codigo', $V_CODIGO)
+    ->where('id_local', $v_idLocal)
+    ->update([
+        'cantidad' => DB::raw('cantidad - ' . $V_CANTIDAD_OK),
+        'ultima_actualizacion' => now(),
+        'actualizacion_estado' => 'pendiente'
+    ]);
+```
+
+### 1.5 Update en tabla de caja (función `fncGuardaVenta()`)
+**Ubicación:** Línea ~580-590
+**Tabla:** Obtenida de `fncTraeTablaCaja()`
+```php
+// Actualizar monto en caja
+DB::table($tableCaja)
+    ->where('id_local', $v_idLocal)
+    ->whereDate('fecha_movimiento', now()->format('Y-m-d'))
+    ->update([
+        'monto' => $V_MONTO_CAJA_FINAL,
+        'fecha_actualizacion' => now(),
+        'ultima_actualizacion' => now(),
+        'actualizacion_estado' => 'pendiente'
+    ]);
+```
+
+---
+
+## **2. STOCKCONTROLLER.PHP**
+
+### 2.1 Update completo de producto (método `update()`)
+**Ubicación:** Línea ~320-340
+**Tabla:** Obtenida de `fncTraeTablaStock()`
+```php
+DB::table($table)
+->where('id_producto','=',$id)
+->update([
+    'codigo'          => $codigo,
+    'empresa'         => $request->empresa,
+    'activo'          => $activar,
+    'descripcion'     => $request->descripcion,
+    'precio_neto'     => str_replace(".","",$request->precio_neto),
+    'precio_costo'    => str_replace(".","",$request->precio_costo),
+    'precio_venta'    => str_replace(".","",$request->precio_venta),
+    'cantidad'        => $request->cantidad,
+    'activo'          => 1,
+    'cantidad_minima' => $request->cantidad_minima,
+    'ultima_actualizacion' => now(),
+    'actualizacion_estado' => 'pendiente'
+]);
+```
+
+### 2.2 Update soft delete (método `destroy()`)
+**Ubicación:** Línea ~358-366
+**Tabla:** Obtenida de `fncTraeTablaStock()`
+```php
+DB::table($table)
+->where('id_producto','=',$id)
+->update([
+    'activo'          => false,
+    'ultima_actualizacion' => now(),
+    'actualizacion_estado' => 'pendiente'
+]);
+```
+
+### 2.3 Update cambio de stock (método `show()`)
+**Ubicación:** Línea ~378-387
+**Tabla:** Obtenida de `fncTraeTablaStock()`
+```php
+DB::table($table)
+->where('id_producto','=',$idProducto)
+->update([
+    'cantidad'          => $cantidad,
+    'ultima_actualizacion' => now(),
+    'actualizacion_estado' => 'pendiente'
+]);
+```
+
+---
+
+## **3. STOCKPENDIENTECONTROLLER.PHP**
+
+### 3.1 Update en tabla de stock (función `transferirPendiente()`)
+**Ubicación:** Método `transferirPendiente()`
+**Tabla:** Obtenida de `fncTraeTablaStock()`
+**Tipo:** Increment
+```php
+// Actualizar cantidad existente
+DB::table($tableStock)
+    ->where('codigo', '=', $productoPendiente->codigo)
+    ->where('id_local', '=', Auth::user()->id_local)
+    ->increment('cantidad', $productoPendiente->cantidad);
+```
+
+### 3.2 Update en tabla de stock (función `transferirTodosPendientes()`)
+**Ubicación:** Método `transferirTodosPendientes()`
+**Tabla:** Obtenida de `fncTraeTablaStock()`
+**Tipo:** Increment (en loop)
+```php
+// Actualizar cantidad existente
+DB::table($tableStock)
+    ->where('codigo', '=', $productoPendiente->codigo)
+    ->where('id_local', '=', Auth::user()->id_local)
+    ->increment('cantidad', $productoPendiente->cantidad);
+```
+
+---
+
+## **RESUMEN ESTADÍSTICO**
+
+### **Por Controlador:**
+- **PagoController:** 5 updates
+- **StockController:** 3 updates  
+- **StockPendienteController:** 2 updates
+
+### **Por Tipo de Operación:**
+- **UPDATE directo:** 7 operaciones
+- **INCREMENT:** 2 operaciones
+- **DB::raw():** 1 operación
+
+### **Por Tipo de Tabla:**
+- **Tabla Stock:** 6 updates
+- **Tabla Ventas Detalle Temporal:** 1 update
+- **Tabla Caja:** 1 update
+
+### **Total de Operaciones UPDATE:** 10
+
+---
+
+## **DETALLE POR CAMPOS ACTUALIZADOS**
+
+### **Campos de Stock más actualizados:**
+1. **cantidad** - 6 operaciones
+2. **ultima_actualizacion** - 5 operaciones
+3. **actualizacion_estado** - 5 operaciones
+4. **precio_costo** - 1 operación
+5. **precio_venta** - 1 operación
+6. **descripcion** - 1 operación
+7. **activo** - 2 operaciones
+
+### **Campos de auditoría:**
+- **ultima_actualizacion** - Usado en 8 de 10 updates
+- **actualizacion_estado** - Usado en 5 de 10 updates
+- **fecha_actualizacion** - Usado en 1 update
+
+---
+
+## **PATRONES IDENTIFICADOS**
+
+### **1. Updates con Query Builder (Recomendado):**
+```php
+DB::table($table)
+    ->where('campo', $valor)
+    ->update(['campo' => $nuevo_valor]);
+```
+
+### **2. Updates con SQL directo (Menos seguro):**
+```php
+DB::select("UPDATE $table SET campo = $valor WHERE condicion");
+```
+
+### **3. Updates con DB::raw() (Para operaciones matemáticas):**
+```php
+DB::table($table)
+    ->update(['cantidad' => DB::raw('cantidad - ' . $valor)]);
+```
+
+### **4. Updates con increment/decrement:**
+```php
+DB::table($table)
+    ->where('condicion')
+    ->increment('campo', $valor);
+```
+
+---
+
+## **OBSERVACIONES IMPORTANTES**
+
+### **Seguridad:**
+1. **SQL Injection:** Los updates con `DB::select()` son vulnerables
+2. **Validación:** Faltan validaciones en algunos updates
+3. **Transacciones:** No se usan transacciones para updates múltiples
+
+### **Performance:**
+1. **Índices:** Los WHERE clauses deben tener índices apropiados
+2. **Batch Updates:** Updates en loops pueden optimizarse
+3. **Locks:** Updates concurrentes pueden causar problemas
+
+### **Auditoría:**
+1. **Campos de seguimiento:** Bien implementados en la mayoría
+2. **Log de cambios:** Falta logging específico para algunos updates
+3. **Rollback:** No hay mecanismo de rollback implementado
+
+---
+
+## **RECOMENDACIONES DE MEJORA**
+
+### **1. Migrar SQL directo a Query Builder:**
+```php
+// Cambiar esto:
+DB::select("UPDATE $table SET cantidad = $valor WHERE codigo = '$codigo'");
+
+// Por esto:
+DB::table($table)
+    ->where('codigo', $codigo)
+    ->update(['cantidad' => $valor]);
+```
+
+### **2. Agregar transacciones:**
+```php
+DB::transaction(function () {
+    // Múltiples updates aquí
+});
+```
+
+### **3. Implementar validaciones:**
+```php
+if ($cantidad < 0) {
+    throw new Exception('Cantidad no puede ser negativa');
+}
+```
+
+### **4. Agregar logging específico:**
+```php
+Log::info('Stock actualizado', [
+    'codigo' => $codigo,
+    'cantidad_anterior' => $cantidadAnterior,
+    'cantidad_nueva' => $cantidadNueva
+]);
+```
+
+---
+
+## **QUERIES PROBLEMÁTICAS IDENTIFICADAS**
+
+### **1. Update sin validación de existencia:**
+```php
+// Problemático - no verifica si el producto existe
+DB::select("UPDATE $tableStock SET cantidad = $cantidadNew WHERE codigo ='".$codigo."'");
+```
+
+### **2. Update sin control de concurrencia:**
+```php
+// Problemático - puede causar race conditions
+DB::table($tableStock)
+    ->update(['cantidad' => DB::raw('cantidad - ' . $valor)]);
+```
+
+### **3. Update en loop sin optimización:**
+```php
+// Problemático - N+1 problem
+foreach ($productos as $producto) {
+    DB::table($table)->where('id', $producto->id)->update([...]);
+}
+```
+
+---
+*Documento generado el: Octubre 2025*
+*Proyecto: Donde El Marco - Sistema de Ventas*
